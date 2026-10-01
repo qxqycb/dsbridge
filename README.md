@@ -9,7 +9,7 @@ Edge 插件 ──在 chat.deepseek.com 里打字、抓回复──> bridge.mjs 
    (ext/)              HTTP + 长轮询 :8791         (单文件服务端)      (工作区目录)
 ```
 
-- **脑子**：网页版 DeepSeek 那个标签页。它不知道自己在被当 agent 用
+- **脑子**：网页版 DeepSeek 那个标签页
 - **手**：`bridge.mjs` 的工具。只有它能碰文件
 - **协议**：一条回复里放一个 JSON 工具调用，插件从 DOM 里抓出来，所以一次只有一件事在跑
 
