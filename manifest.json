@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "deepseek web bridge",
+  "version": "0.2.0",
+  "description": "Relays one chat.deepseek.com turn to a local tool-loop server.",
+  "host_permissions": ["http://127.0.0.1:8791/*", "http://127.0.0.1:8799/*"],
+  "permissions": ["alarms", "storage", "tabs"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["https://chat.deepseek.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "deepseek web bridge",
+    "default_popup": "popup.html"
+  }
+}

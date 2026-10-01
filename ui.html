@@ -1,0 +1,983 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8" />
+    <title>deepseek web bridge</title>
+    <style>
+      /* Lifted from the harness's own theme, token names and all: the values come from
+         packages/client/ui-theme/src/styles/design-platform.css, so a colour here can be
+         checked against that file instead of argued about. Light by default, dark from the
+         system — the native answer — and `color-scheme` so the UA's own widgets follow. */
+      :root {
+        color-scheme: light;
+        --dsw-static-neutral-bluish-00: rgb(255, 255, 255);
+        --dsw-static-neutral-bluish-50: rgb(249, 250, 251);
+        --dsw-static-neutral-bluish-75: rgb(241, 243, 245);
+        --dsw-static-neutral-bluish-100: rgb(235, 238, 242);
+        --dsw-static-neutral-bluish-200: rgb(225, 229, 238);
+        --dsw-static-neutral-bluish-300: rgb(207, 211, 214);
+        --dsw-static-neutral-bluish-400: rgb(173, 178, 184);
+        --dsw-static-neutral-bluish-500: rgb(151, 157, 166);
+        --dsw-static-neutral-bluish-600: rgb(129, 133, 140);
+        --dsw-static-neutral-bluish-700: rgb(97, 102, 107);
+        --dsw-static-neutral-bluish-800: rgb(53, 54, 56);
+        --dsw-static-neutral-bluish-850: rgb(44, 44, 46);
+        --dsw-static-neutral-bluish-875: rgb(35, 35, 36);
+        --dsw-static-neutral-bluish-900: rgb(27, 27, 28);
+        --dsw-static-neutral-bluish-950: rgb(21, 21, 23);
+        --dsw-static-neutral-bluish-1000: rgb(15, 17, 21);
+        --dsw-static-deepseek-50: rgb(237, 243, 254);
+        --dsw-static-deepseek-100: rgb(228, 237, 253);
+        --dsw-static-deepseek-400: rgb(103, 158, 254);
+        --dsw-static-deepseek-500: rgb(65, 118, 230);
+        --dsw-static-deepseek-800: rgb(52, 65, 91);
+        --dsw-static-red-100: rgb(254, 226, 226);
+        --dsw-static-red-400: rgb(242, 90, 90);
+        --dsw-static-red-600: rgb(236, 19, 19);
+        --dsw-static-green-400: rgb(78, 209, 126);
+        --dsw-static-green-500: rgb(34, 197, 94);
+        --dsw-static-green-900: rgb(35, 60, 44);
+        --dsw-static-green-100: rgb(230, 250, 237);
+        --dsw-static-amber-500: rgb(245, 158, 11);
+        /* The UI face for prose, the code face for anything a machine wrote. The code stack has
+           no bare `monospace` tail on purpose: Windows CJK falls back to SimSun through it. */
+        --dsw-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+          'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        --ds-font-family-code: 'SF Mono', 'JetBrains Mono', 'Fira Code', Consolas,
+          'Liberation Mono', Menlo, Courier, 'PingFang SC', 'Microsoft YaHei';
+        --ds-ease: cubic-bezier(0.4, 0, 0.2, 1);
+        --ds-duration: 0.2s;
+        --ds-duration-fast: 0.1s;
+
+        --dsw-alias-bg-base: var(--dsw-static-neutral-bluish-00);
+        --dsw-alias-bg-layer-2: var(--dsw-static-neutral-bluish-00);
+        --dsw-alias-border-l1: rgba(0, 0, 0, 0.04);
+        --dsw-alias-border-l2: rgba(0, 0, 0, 0.1);
+        --dsw-alias-border-l4: rgba(0, 0, 0, 0.16);
+        --dsw-alias-label-primary: var(--dsw-static-neutral-bluish-1000);
+        --dsw-alias-label-secondary: var(--dsw-static-neutral-bluish-700);
+        --dsw-alias-label-tertiary: var(--dsw-static-neutral-bluish-600);
+        --dsw-alias-interactive-bg-hover: rgba(38, 49, 72, 0.06);
+        --dsw-specific-input-major: var(--dsw-static-neutral-bluish-00);
+        --dsw-specific-tip: var(--dsw-static-neutral-bluish-50);
+        --dsw-alias-markdown-code-block: var(--dsw-static-neutral-bluish-50);
+        --dsw-alias-state-business-primary: var(--dsw-static-deepseek-500);
+        --dsw-alias-state-business-tertiary: var(--dsw-static-deepseek-100);
+        --dsw-alias-state-error-primary: var(--dsw-static-red-600);
+        --dsw-alias-state-error-tertiary: var(--dsw-static-red-100);
+        --dsw-alias-state-success-primary: var(--dsw-static-green-500);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          color-scheme: dark;
+          --dsw-alias-bg-base: var(--dsw-static-neutral-bluish-950);
+          --dsw-alias-bg-layer-2: var(--dsw-static-neutral-bluish-850);
+          --dsw-alias-border-l1: rgba(255, 255, 255, 0.06);
+          --dsw-alias-border-l2: rgba(255, 255, 255, 0.12);
+          --dsw-alias-border-l4: rgba(255, 255, 255, 0.2);
+          --dsw-alias-label-primary: var(--dsw-static-neutral-bluish-50);
+          --dsw-alias-label-secondary: var(--dsw-static-neutral-bluish-300);
+          --dsw-alias-label-tertiary: var(--dsw-static-neutral-bluish-400);
+          --dsw-alias-interactive-bg-hover: rgba(255, 255, 255, 0.08);
+          --dsw-specific-input-major: var(--dsw-static-neutral-bluish-850);
+          --dsw-specific-tip: var(--dsw-static-neutral-bluish-875);
+          --dsw-alias-markdown-code-block: var(--dsw-static-neutral-bluish-900);
+          --dsw-alias-state-business-primary: var(--dsw-static-deepseek-400);
+          --dsw-alias-state-business-tertiary: var(--dsw-static-deepseek-800);
+          --dsw-alias-state-error-primary: var(--dsw-static-red-400);
+          --dsw-alias-state-error-tertiary: var(--dsw-static-red-100);
+          --dsw-alias-state-success-primary: var(--dsw-static-green-400);
+        }
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        height: 100vh;
+        display: grid;
+        grid-template-columns: var(--side, 248px) 6px 1fr;
+        background: var(--dsw-alias-bg-base);
+        color: var(--dsw-alias-label-primary);
+        font: 14px/1.6 var(--dsw-font-family);
+        -webkit-font-smoothing: antialiased;
+      }
+      /* Native scrollbars, tinted by the theme: the UA's own bar ignores the palette, and a
+         light bar over the dark surface looks broken. Thin, because these panes are dense. */
+      * { scrollbar-width: thin; scrollbar-color: var(--dsw-alias-border-l4) transparent; }
+      /* drag handle between the session list and the conversation */
+      #grip { cursor: col-resize; background: var(--dsw-alias-border-l1); transition: background var(--ds-duration) var(--ds-ease); }
+      #grip:hover, #grip.on { background: var(--dsw-alias-state-business-primary); }
+      /* left: sessions */
+      aside {
+        background: var(--dsw-alias-bg-layer-2);
+        border-right: 1px solid var(--dsw-alias-border-l1);
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      aside h1 { font-size: 12px; margin: 14px 14px 8px; color: var(--dsw-alias-label-tertiary); font-weight: 600; }
+      /* The one setting that decides what the tools may touch. A text field rather than a folder
+         chooser: a page cannot open the native one, and this can at least show the current path. */
+      #ws { display: flex; gap: 6px; padding: 12px 10px 0; }
+      #ws-path {
+        flex: 1;
+        min-width: 0;
+        padding: 6px 10px;
+        font: 12px var(--dsw-font-family);
+        color: var(--dsw-alias-label-primary);
+        background: var(--dsw-specific-input-major);
+        border: 1px solid var(--dsw-alias-border-l1);
+        border-radius: 8px;
+      }
+      #ws-path:focus { outline: none; border-color: var(--dsw-alias-label-tertiary); }
+      #ws-set { padding: 6px 10px; font-size: 12px; }
+      #filter {
+        margin: 0 10px 6px;
+        padding: 6px 10px;
+        font: 12px var(--dsw-font-family);
+        color: var(--dsw-alias-label-primary);
+        background: var(--dsw-specific-input-major);
+        border: 1px solid var(--dsw-alias-border-l1);
+        border-radius: 8px;
+      }
+      #filter:focus { outline: none; border-color: var(--dsw-alias-state-business-primary); }
+      #sessions { overflow-y: auto; flex: 1; padding: 4px 6px; }
+      .sess {
+        padding: 7px 10px;
+        cursor: pointer;
+        border-radius: 8px;
+        transition: background var(--ds-duration) var(--ds-ease);
+      }
+      .sess:hover { background: var(--dsw-alias-interactive-bg-hover); }
+      .sess.on { background: var(--dsw-alias-state-business-tertiary); color: var(--dsw-static-deepseek-500); }
+      .sess .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .sess .m { color: var(--dsw-alias-label-tertiary); font-size: 11px; }
+      /* The conversation being written to right now. A word, not a dot: it is the only marker in
+         the sidebar and it has to be readable at a glance. */
+      .sess.live .m::after { content: ' · 进行中'; color: var(--dsw-alias-state-business-primary); }
+      aside footer { padding: 10px 14px; border-top: 1px solid var(--dsw-alias-border-l1); }
+      /* right: conversation */
+      main { display: flex; flex-direction: column; min-height: 0; }
+      #top {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding: 10px 18px;
+        border-bottom: 1px solid var(--dsw-alias-border-l1);
+        color: var(--dsw-alias-label-tertiary);
+      }
+      #state { font-weight: 600; }
+      #state.on { color: var(--dsw-alias-state-success-primary); }
+      #state.off { color: var(--dsw-alias-state-error-primary); }
+      /* The standing permission. Three pills, so which one is on is visible at a glance. */
+      #modes { margin-left: auto; display: flex; gap: 4px; }
+      #modes button { font-size: 12px; padding: 3px 12px; border-radius: 999px; }
+      #modes button.on {
+        border-color: var(--dsw-alias-state-business-primary);
+        color: var(--dsw-alias-state-business-primary);
+        background: var(--dsw-alias-state-business-tertiary);
+      }
+      /* A question the run is waiting on. The one card that is allowed to be loud. */
+      .ask {
+        border: 1px solid var(--dsw-alias-state-business-primary);
+        border-radius: 12px;
+        padding: 14px 16px;
+        background: var(--dsw-alias-state-business-tertiary);
+      }
+      .ask .q { font-weight: 600; white-space: pre-wrap; }
+      .ask .why, .ask .said, .ask .asked { color: var(--dsw-alias-label-secondary); font-size: 12px; margin-top: 6px; white-space: pre-wrap; }
+      .ask input {
+        width: 100%;
+        background: var(--dsw-specific-input-major);
+        color: var(--dsw-alias-label-primary);
+        border: 1px solid var(--dsw-alias-border-l2);
+        border-radius: 8px;
+        padding: 8px 10px;
+        font: inherit;
+        margin-top: 10px;
+      }
+      .ask .row { margin-top: 8px; }
+      .ask.done { border-color: var(--dsw-alias-border-l2); background: transparent; opacity: 0.65; }
+      #log { flex: 1; overflow-y: auto; padding: 26px 28px 12px; scroll-behavior: smooth; }
+      /* A comfortable measure, like every chat client: at full width a paragraph runs the length of
+         a 27-inch monitor and the eye loses the line it was on. */
+      #log > * { margin-bottom: 14px; max-width: 880px; margin-inline: auto; }
+      /* Everything that arrives while a run is live rises into place. Replay gets none of it: a
+         session with a hundred and fifty events would flash the whole transcript at once. */
+      @keyframes wb-rise { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
+      #log:not(.replay) > .task, #log:not(.replay) > .assistant, #log:not(.replay) > .question,
+      #log:not(.replay) > .err, #log:not(.replay) > details, #log:not(.replay) > .ask {
+        animation: wb-rise var(--ds-duration) var(--ds-ease) both;
+      }
+      /* Alive, while a run is in flight: the status word pulses. It used to draw three dots at the
+         tail of the transcript too, which the person reading it found ugly — the pulse is enough,
+         and the run's progress is already visible in the lines arriving. */
+      /* Machine output, so the code face; prose below switches to the UI face. */
+      .step, .request {
+        color: var(--dsw-alias-label-tertiary);
+        font: 12px/1.65 var(--ds-font-family-code);
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .err { color: var(--dsw-alias-state-error-primary); white-space: pre-wrap; word-break: break-word; }
+      /* A question from a past run, replayed as history. */
+      .question { color: var(--dsw-alias-label-secondary); white-space: pre-wrap; word-break: break-word; }
+      /* A task opens a section. Several tasks share one conversation now, so the transcript has
+         to show where each one began — whitespace and a hairline do that without a label. */
+      .task {
+        color: var(--dsw-alias-state-business-primary);
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-weight: 600;
+        margin-top: 28px;
+        padding-top: 18px;
+        border-top: 1px solid var(--dsw-alias-border-l1);
+      }
+      #log > .task:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+      /* What the model said: the one thing on screen that is prose, so it gets the UI face. */
+      .assistant { position: relative; white-space: pre-wrap; word-break: break-word; line-height: 1.75; }
+      /* One click takes the text away. Dim until you want it, so a transcript of replies is not a
+         wall of buttons. */
+      .copy {
+        padding: 2px 8px;
+        font: 11px/1.4 var(--dsw-font-family);
+        border-radius: 999px;
+        opacity: 0.4;
+        transition: opacity var(--ds-duration) var(--ds-ease);
+      }
+      .copy:hover, .copy:focus-visible { opacity: 1; }
+      .assistant > .copy { position: absolute; top: -2px; right: 0; }
+      details.tool > summary > .copy, details.raw > summary > .copy { float: right; margin-left: 8px; }
+      /* The markdown subset md.js produces. Plain text inside each block stays pre-wrap, so a
+         wrapped sentence keeps the newlines the model wrote. */
+      .md > * + * { margin-top: 10px; }
+      .md p, .md blockquote, .md li { white-space: pre-wrap; word-break: break-word; margin: 0; }
+      .md h1, .md h2, .md h3, .md h4, .md h5, .md h6 { font-size: 15px; font-weight: 600; margin: 0; }
+      .md ul, .md ol { margin: 0; padding-left: 22px; }
+      .md blockquote { border-left: 2px solid var(--dsw-alias-border-l2); padding-left: 12px; color: var(--dsw-alias-label-secondary); }
+      .md code {
+        font: 0.92em var(--ds-font-family-code);
+        background: var(--dsw-alias-markdown-code-block);
+        border-radius: 6px;
+        padding: 1px 5px;
+      }
+      .md pre {
+        margin: 0;
+        position: relative;
+        background: var(--dsw-alias-markdown-code-block);
+        border: 1px solid var(--dsw-alias-border-l1);
+        border-radius: 10px;
+        font: 12.5px/1.6 var(--ds-font-family-code);
+        padding: 10px 12px;
+        white-space: pre-wrap;
+        word-break: break-word;
+        max-height: 340px;
+        overflow: auto;
+      }
+      /* A copy button on the block itself, which is the thing people actually copy. It stays out
+         of the way until the pointer is over the block. */
+      .md pre > .copy { position: absolute; top: 6px; right: 6px; opacity: 0; }
+      .md pre:hover > .copy, .md pre > .copy:focus-visible { opacity: 1; }
+      .md pre .lang {
+        display: inline-block;
+        font-size: 11px;
+        color: var(--dsw-alias-label-tertiary);
+        background: var(--dsw-alias-interactive-bg-hover);
+        border-radius: 999px;
+        padding: 1px 8px;
+        margin-bottom: 6px;
+      }
+      /* Links and emphasis inside a reply: without these the browser's default blue/purple shows
+         up in dark mode, which is the one colour nothing else on the page uses. */
+      .md a {
+        color: var(--dsw-alias-state-business-primary);
+        text-decoration: none;
+        border-bottom: 1px solid color-mix(in srgb, var(--dsw-alias-state-business-primary) 40%, transparent);
+      }
+      .md a:hover { border-bottom-color: var(--dsw-alias-state-business-primary); }
+      .md strong { font-weight: 600; }
+      .md li::marker { color: var(--dsw-alias-label-tertiary); }
+      details.tool, details.raw, details.change {
+        background: var(--dsw-alias-bg-layer-2);
+        border: 1px solid var(--dsw-alias-border-l1);
+        border-radius: 12px;
+        overflow: hidden;
+        transition: box-shadow var(--ds-duration) var(--ds-ease), transform var(--ds-duration) var(--ds-ease);
+      }
+      details.tool:hover, details.raw:hover, details.change:hover {
+        box-shadow: 0 4px 16px -12px color-mix(in srgb, var(--dsw-alias-label-primary) 55%, transparent);
+        transform: translateY(-1px);
+      }
+      details.tool > summary, details.raw > summary, details.change > summary {
+        cursor: pointer;
+        padding: 8px 12px;
+        list-style: none;
+        transition: background var(--ds-duration) var(--ds-ease);
+      }
+      details.tool > summary:hover, details.raw > summary:hover, details.change > summary:hover {
+        background: var(--dsw-alias-interactive-bg-hover);
+      }
+      details.tool > summary::-webkit-details-marker, details.raw > summary::-webkit-details-marker,
+      details.change > summary::-webkit-details-marker { display: none; }
+      details.tool > * + *, details.change > * + * { border-top: 1px solid var(--dsw-alias-border-l1); }
+      /* A chevron, so a collapsed card says it opens. It floats left of `.ms`, which is the last
+         real element in the summary and therefore sits furthest right. */
+      details.tool > summary::after, details.raw > summary::after, details.change > summary::after {
+        content: '›';
+        float: right;
+        margin-left: 8px;
+        color: var(--dsw-alias-label-tertiary);
+        transition: transform var(--ds-duration) var(--ds-ease);
+      }
+      details[open] > summary::after { transform: rotate(90deg); }
+      .name { color: var(--dsw-alias-state-business-primary); font-weight: 600; }
+      .arrow { color: var(--dsw-alias-label-tertiary); }
+      .ms { color: var(--dsw-alias-label-tertiary); float: right; font-size: 12px; }
+      details.tool pre, details.raw pre {
+        font: 12.5px/1.6 var(--ds-font-family-code);
+        max-height: 340px;
+        overflow: auto;
+      }
+      details.tool pre, details.raw pre {
+        margin: 0;
+        padding: 10px 12px;
+        background: var(--dsw-alias-markdown-code-block);
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      /* A diff reads as a diff: tinted rows, not just coloured text. `color-mix` keeps the tint
+         tied to the same token the text uses, so a theme change moves both. */
+      details.change pre { margin: 0; padding: 6px 0; overflow: auto; max-height: 340px; }
+      details.change .del, details.change .add {
+        font: 12.5px/1.75 var(--ds-font-family-code);
+        padding: 0 12px;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      details.change .del {
+        color: var(--dsw-alias-state-error-primary);
+        background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 8%, transparent);
+      }
+      details.change .add {
+        color: var(--dsw-alias-state-success-primary);
+        background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 8%, transparent);
+      }
+      /* bottom: composer */
+      #composer {
+        border-top: 1px solid var(--dsw-alias-border-l1);
+        padding: 12px 18px 14px;
+        background: var(--dsw-alias-bg-base);
+        /* Lifts the input off the transcript without a second border: the shadow is the same
+           token as the text, at low opacity, so it works in both themes. */
+        box-shadow: 0 -8px 20px -18px color-mix(in srgb, var(--dsw-alias-label-primary) 45%, transparent);
+      }
+      textarea {
+        width: 100%;
+        height: 68px;
+        max-height: 320px;
+        resize: none;
+        background: var(--dsw-specific-input-major);
+        color: var(--dsw-alias-label-primary);
+        border: 1px solid var(--dsw-alias-border-l2);
+        border-radius: 16px;
+        padding: 10px 14px;
+        font: 14px/1.6 var(--dsw-font-family);
+        transition: border-color var(--ds-duration) var(--ds-ease), box-shadow var(--ds-duration) var(--ds-ease);
+      }
+      textarea::placeholder { color: var(--dsw-alias-label-tertiary); }
+      /* Focus still has to be visible — keyboard users need it — but it no longer has to be the
+         accent colour: a heavier neutral border and a neutral glow say the same thing. */
+      textarea:focus { outline: none; border-color: var(--dsw-alias-label-tertiary); }
+      #composer:focus-within textarea {
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--dsw-alias-label-primary) 10%, transparent);
+      }
+      .row { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+      button {
+        font: 13px/1 var(--dsw-font-family);
+        padding: 7px 14px;
+        background: var(--dsw-alias-bg-layer-2);
+        color: var(--dsw-alias-label-primary);
+        border: 1px solid var(--dsw-alias-border-l2);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background var(--ds-duration) var(--ds-ease), border-color var(--ds-duration) var(--ds-ease),
+          transform var(--ds-duration-fast) var(--ds-ease);
+      }
+      button:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover); }
+      button:active:not(:disabled) { transform: translateY(1px); }
+      button:disabled { opacity: 0.45; cursor: default; }
+      #send {
+        background: var(--dsw-alias-state-business-primary);
+        border-color: var(--dsw-alias-state-business-primary);
+        color: var(--dsw-static-neutral-bluish-00);
+        font-weight: 600;
+      }
+      #newchat.armed { border-color: var(--dsw-alias-state-error-primary); color: var(--dsw-alias-state-error-primary); }
+      #hint { color: var(--dsw-alias-state-error-primary); min-height: 1.2em; }
+      #hint.dim { color: var(--dsw-alias-label-tertiary); }
+      #ver { font-size: 12px; color: var(--dsw-alias-label-tertiary); }
+      /* The caret is part of the mood: the default black bar in a dark box is the one place the
+         palette does not reach. */
+      textarea, .ask input { caret-color: var(--dsw-alias-label-primary); }
+
+      /* Back to the newest line, shown only once you have scrolled away from the bottom — the one
+         moment it is worth anything. */
+      main { position: relative; }
+      #jump {
+        position: absolute;
+        right: 24px;
+        bottom: 152px;
+        width: 34px;
+        height: 34px;
+        margin: 0;
+        padding: 0;
+        font-size: 15px;
+        line-height: 1;
+        border-radius: 999px;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(6px);
+        box-shadow: 0 5px 16px -9px color-mix(in srgb, var(--dsw-alias-label-primary) 60%, transparent);
+        transition: opacity var(--ds-duration) var(--ds-ease), transform var(--ds-duration) var(--ds-ease);
+      }
+      #jump.show { opacity: 1; pointer-events: auto; transform: none; }
+
+      /* ---- the small stuff ----------------------------------------------------------------
+         Nothing here changes what the console does; it is what makes it look deliberate. */
+      /* Keyboard reachability first: a focus ring nothing else on the page can hide. */
+      :focus-visible { outline: 2px solid var(--dsw-alias-state-business-primary); outline-offset: 2px; }
+      /* A text input matches `:focus-visible` whenever it is focused — a mouse click counts — so the
+         ring above would put the accent colour back on the composer the moment someone clicked into
+         it. These two keep the neutral border and glow instead, which is still a focus indication. */
+      textarea:focus-visible, .ask input:focus-visible { outline: none; }
+      ::selection { background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 26%, transparent); }
+      /* The run is alive. A slow pulse on the status word, not a spinner: there is nothing to
+         spin, and a moving element next to the transcript pulls the eye off it. */
+      @keyframes wb-pulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.4 } }
+      #state.run {
+        color: var(--dsw-alias-state-business-primary);
+        animation: wb-pulse 2.4s var(--ds-ease) infinite;
+      }
+      /* Nothing said yet. An empty pane reads as broken; one grey line reads as ready. */
+      #log:empty::before {
+        content: '说事就行。让它改代码，或者直接问它问题。';
+        color: var(--dsw-alias-label-tertiary);
+      }
+      .ask { box-shadow: 0 6px 20px -16px color-mix(in srgb, var(--dsw-alias-label-primary) 50%, transparent); }
+      /* Motion is decoration here; anything that asks for less of it gets none of it. */
+      @media (prefers-reduced-motion: reduce) {
+        * { animation: none !important; transition: none !important; }
+        #log { scroll-behavior: auto; }
+      }
+    </style>
+  </head>
+  <body>
+    <aside>
+      <div id="ws">
+        <input id="ws-path" type="text" placeholder="工作区路径" />
+        <button id="ws-set">应用</button>
+      </div>
+      <h1>会话</h1>
+      <input id="filter" type="search" placeholder="过滤…" />
+      <div id="sessions"></div>
+      <footer><button id="reload">刷新列表</button></footer>
+    </aside>
+    <div id="grip" title="拖动调整宽度"></div>
+    <main>
+      <div id="top">
+        <span id="state">连接中…</span>
+        <span id="ver"></span>
+        <span id="modes"></span>
+      </div>
+      <div id="log"></div>
+      <div id="composer">
+        <textarea id="task" placeholder="说事就行：让它改代码，或者直接问它问题。Enter 发送，Shift+Enter 换行"></textarea>
+        <div class="row">
+          <button id="send">发送</button>
+          <button id="stop">停止</button>
+          <button id="newchat">新对话</button>
+          <button id="clear">清空显示</button>
+          <button id="probe">检查页面</button>
+          <span id="hint"></span>
+        </div>
+      </div>
+    </main>
+    <script type="module">
+      // Imported dynamically so a server too old to serve /md.js 404s the module without
+      // killing the page: the transcript then falls back to plain text. A static import
+      // fails the whole module, and the symptom is a blank console with nothing on the
+      // server to explain it — which is what refreshing before restarting would produce.
+      let mdBlocks = (text) => [{ kind: 'p', text }];
+      let mdInline = (text) => [{ text }];
+      try {
+        ({ mdBlocks, mdInline } = await import('./md.js'));
+      } catch {
+        // Plain text it is; still readable, just unformatted.
+      }
+      const $ = (id) => document.getElementById(id);
+      const el = (tag, props = {}) => Object.assign(document.createElement(tag), props);
+      const at = () => new Date().toLocaleTimeString();
+
+      // Sidebar width, dragged. Stored so the layout survives a reload; the
+      // bounds keep the handle reachable and the conversation usable.
+      const saved = Number(localStorage.getItem('side'));
+      if (saved >= 140) document.body.style.setProperty('--side', saved + 'px');
+      $('grip').addEventListener('pointerdown', (down) => {
+        $('grip').classList.add('on');
+        $('grip').setPointerCapture(down.pointerId);
+        const move = (e) => {
+          const w = Math.min(Math.max(e.clientX, 140), window.innerWidth - 260);
+          document.body.style.setProperty('--side', w + 'px');
+        };
+        const up = () => {
+          $('grip').classList.remove('on');
+          $('grip').removeEventListener('pointermove', move);
+          $('grip').removeEventListener('pointerup', up);
+          localStorage.setItem('side', parseInt(getComputedStyle(document.body).getPropertyValue('--side'), 10));
+        };
+        $('grip').addEventListener('pointermove', move);
+        $('grip').addEventListener('pointerup', up);
+      });
+
+      // Rendering a session is appending a block; nothing is diffed, because a
+      // run only ever appends.
+      function line(kind, text) {
+        const box = $('log');
+        const stick = box.scrollTop + box.clientHeight >= box.scrollHeight - 40;
+        box.append(el('div', { className: kind, textContent: text }));
+        if (stick) box.scrollTop = box.scrollHeight;
+      }
+
+      // Inline runs as nodes, every one of them textContent: a reply is displayed, never
+      // interpreted, so markup inside it cannot become markup on the page.
+      function inlineNodes(text) {
+        return mdInline(text).map((r) => {
+          if (!r.kind) return document.createTextNode(r.text);
+          if (r.kind === 'link') {
+            return el('a', { textContent: r.text, href: r.href, target: '_blank', rel: 'noreferrer' });
+          }
+          return el(r.kind === 'strong' ? 'strong' : r.kind === 'em' ? 'em' : 'code', { textContent: r.text });
+        });
+      }
+
+      // One click to take the text. `navigator.clipboard` needs a secure context, and 127.0.0.1
+      // counts as one, so there is no fallback path here.
+      function copyButton(text) {
+        const b = el('button', { className: 'copy', textContent: '复制', title: '复制全文' });
+        b.onclick = async (ev) => {
+          // Inside a <summary> a click would toggle the card; the copy is the whole gesture.
+          ev.preventDefault();
+          ev.stopPropagation();
+          try {
+            await navigator.clipboard.writeText(text);
+            b.textContent = '已复制';
+          } catch {
+            b.textContent = '复制失败';
+          }
+          setTimeout(() => { b.textContent = '复制'; }, 1500);
+        };
+        return b;
+      }
+
+      // A reply as markdown. The log lines and tool cards stay plain: only what the model
+      // said is prose, and formatting it is the difference between reading an answer and
+      // reading a wall of source.
+      function markdownReply(text) {
+        const box = $('log');
+        const stick = box.scrollTop + box.clientHeight >= box.scrollHeight - 40;
+        const md = el('div', { className: 'md' });
+        for (const b of mdBlocks(text)) {
+          if (b.kind === 'code') {
+            const pre = el('pre');
+            // The block is what people copy, so it carries its own button.
+            pre.append(copyButton(b.text));
+            if (b.lang) pre.append(el('div', { className: 'lang', textContent: b.lang }));
+            pre.append(el('div', { textContent: b.text }));
+            md.append(pre);
+          } else if (b.kind === 'h') {
+            // A real heading element, not a div with a class: the CSS already targets
+            // `.md h1..h6`, and a div.h matched none of it.
+            const node = el(`h${b.level}`);
+            node.append(...inlineNodes(b.text));
+            md.append(node);
+          } else if (b.kind === 'ul' || b.kind === 'ol') {
+            const list = el(b.kind === 'ul' ? 'ul' : 'ol');
+            for (const item of b.items) {
+              const li = el('li');
+              li.append(...inlineNodes(item));
+              list.append(li);
+            }
+            md.append(list);
+          } else {
+            const node = el(b.kind === 'quote' ? 'blockquote' : 'p');
+            node.append(...inlineNodes(b.text));
+            md.append(node);
+          }
+        }
+        // Three statements, not a chain: append() returns undefined, so
+        // `box.append(wrapper).append(md)` threw on the second call. The empty wrapper was
+        // already in the log, and the reply text never attached — which also aborted the
+        // replay loop in render(), cutting a whole session off at its first answer.
+        const wrapper = el('div', { className: 'assistant' });
+        wrapper.append(copyButton(text), md);
+        box.append(wrapper);
+        if (stick) box.scrollTop = box.scrollHeight;
+      }
+
+      function toolCard(e) {
+        const box = $('log');
+        const stick = box.scrollTop + box.clientHeight >= box.scrollHeight - 40;
+        const d = el('details', { className: 'tool' });
+        const sum = el('summary');
+        sum.append(
+          el('span', { className: 'name', textContent: e.tool }),
+          el('span', { textContent: ' ' + (e.target || '') }),
+          el('span', { className: 'ms', textContent: e.elapsed || '' }),
+        );
+        // The payload is what the model read; copying it is how a human gets it back out.
+        sum.append(copyButton(e.result || ''));
+        d.append(sum, el('pre', { textContent: e.result || '' }));
+        box.append(d);
+        if (stick) box.scrollTop = box.scrollHeight;
+      }
+
+      // A change as a compact diff: the removed lines, then the added ones.
+      // A whole-file write has no before, so every line reads as added.
+      function changeCard(e) {
+        const box = $('log');
+        const stick = box.scrollTop + box.clientHeight >= box.scrollHeight - 40;
+        const before = (e.before ?? '').split('\n').filter((l) => l !== '');
+        const after = (e.after ?? '').split('\n').filter((l) => l !== '');
+        const d = el('details', { className: 'change', open: true });
+        const sum = el('summary');
+        sum.append(
+          el('span', { className: 'name', textContent: e.kind === 'write' ? '新建/覆盖' : '修改' }),
+          el('span', { textContent: ' ' + e.arg }),
+          el('span', { className: 'ms', textContent: `-${before.length} +${after.length}` }),
+        );
+        const pre = el('pre');
+        for (const l of before) pre.append(el('div', { className: 'del', textContent: '- ' + l }));
+        for (const l of after) pre.append(el('div', { className: 'add', textContent: '+ ' + l }));
+        d.append(sum, pre);
+        box.append(d);
+        if (stick) box.scrollTop = box.scrollHeight;
+      }
+
+      // A question or an approval the run is blocked on. Built live only: replaying a session
+      // must not put a button on screen that would answer a question nobody is waiting for.
+      function askCard(e) {
+        const box = $('log');
+        const d = el('div', { className: 'ask' });
+        d.append(
+          el('div', { className: 'q', textContent: e.question }),
+          el('div', { className: 'asked', textContent: e.kind === 'approval' ? '它在等你放行' : '它在等你回答' }),
+        );
+        if (e.why) d.append(el('div', { className: 'why', textContent: `理由：${e.why}` }));
+        const input = el('input', { type: 'text', placeholder: e.kind === 'approval' ? '（可以留一句说明）' : '答案' });
+        const row = el('div', { className: 'row' });
+        const answer = async (body) => {
+          const r = await post('/answer', { id: e.id, ...body });
+          // Only a real answer locks the card. A 409 means it was already answered (or the
+          // page was reloaded mid-question), and pretending it worked would hide that.
+          if (!r?.ok) return;
+          for (const b of row.children) b.disabled = true;
+          input.disabled = true;
+          d.className = 'ask done';
+          d.append(el('div', { className: 'said', textContent: `已回：${body.text || (body.allow ? '允许' : '拒绝')}` }));
+          box.scrollTop = box.scrollHeight;
+        };
+        if (e.kind === 'approval') {
+          row.append(
+            el('button', { textContent: '允许', onclick: () => answer({ allow: true, text: input.value }) }),
+            el('button', { textContent: '拒绝', onclick: () => answer({ allow: false, text: input.value }) }),
+          );
+        } else {
+          for (const option of e.options ?? []) {
+            // One click answers. It used to fill the box and wait for a second click, which is
+            // two gestures for a question whose answer is already printed on the button.
+            row.append(el('button', { textContent: option, onclick: () => answer({ text: option }) }));
+          }
+          row.append(el('button', { textContent: '回答', onclick: () => answer({ text: input.value }) }));
+          // Enter answers too: the run is blocked on this, and the keyboard is already in the box.
+          input.addEventListener('keydown', (ev) => {
+            if (ev.key !== 'Enter') return;
+            ev.preventDefault();
+            answer({ text: input.value });
+          });
+        }
+        d.append(input, row);
+        box.append(d);
+        input.focus();
+        box.scrollTop = box.scrollHeight;
+      }
+
+      function render(events) {
+        // Replay gets no entrance animation: a long session would flash the whole transcript.
+        $('log').classList.add('replay');
+        $('log').innerHTML = '';
+        for (const e of events) {
+          if (e.type === 'task') line('task', '▶ ' + e.task);
+          else if (e.type === 'log') line(e.kind || 'step', e.text);
+          else if (e.type === 'assistant') markdownReply(e.text);
+          else if (e.type === 'tool') toolCard(e);
+          else if (e.type === 'change') changeCard(e);
+          // A question from a past run is history, not a prompt: show what was asked, in the
+          // dim log style — reusing the live card's class would draw buttons that answer
+          // nothing.
+          else if (e.type === 'ask') line('question', `？ ${e.question}`);
+        }
+      }
+
+      async function loadSessions() {
+        const list = await (await fetch('/sessions')).json();
+        const box = $('sessions');
+        box.innerHTML = '';
+        for (const s of list) {
+          const d = el('div', { className: 'sess' });
+          // Kept on the row so the filter and the live marker can work without another fetch.
+          d.dataset.id = s.id;
+          d.dataset.title = (s.task || '').toLowerCase();
+          d.append(
+            el('div', { className: 't', textContent: s.task || '(无任务)' }),
+            el('div', { className: 'm', textContent: `${s.id.slice(11, 19)} · ${s.steps} 条` }),
+          );
+          d.onclick = async () => {
+            for (const other of box.children) other.classList.remove('on');
+            d.classList.add('on');
+            render(await (await fetch('/session/' + encodeURIComponent(s.id))).json());
+          };
+          box.append(d);
+        }
+        applyFilter();
+        markLive(lastSessionId);
+      }
+
+      // Filtering is local: the rows are already in the DOM, so it is a substring test and
+      // nothing else. With a hundred-odd conversations that is the difference between a list
+      // and a menu.
+      function applyFilter() {
+        const q = $('filter').value.trim().toLowerCase();
+        for (const row of $('sessions').children) {
+          row.hidden = q !== '' && !row.dataset.title.includes(q);
+        }
+      }
+      $('filter').addEventListener('input', applyFilter);
+
+      // Back to the newest line. The log sticks to the bottom on its own; this is for the other
+      // direction, and it only appears when there is something below you.
+      const jump = el('button', { id: 'jump', textContent: '↓', title: '回到最新' });
+      jump.onclick = () => { $('log').scrollTop = $('log').scrollHeight; };
+      // Appended inside #log but positioned against `main`, which is the nearest positioned
+      // ancestor: it does not scroll with the transcript, and it needs no sibling insertion.
+      $('log').append(jump);
+      function syncJump() {
+        const box = $('log');
+        jump.classList.toggle('show', box.scrollTop + box.clientHeight < box.scrollHeight - 60);
+      }
+      $('log').addEventListener('scroll', syncJump);
+      syncJump();
+
+      // The row being written to right now wears a marker, so the sidebar and the transcript agree
+      // about which conversation is live.
+      let lastSessionId = null;
+      function markLive(id) {
+        lastSessionId = id ?? null;
+        for (const row of $('sessions').children) row.classList.toggle('live', row.dataset.id === lastSessionId);
+      }
+
+      // The live stream drives the transcript; /status only carries the badge,
+      // because the stream says nothing while the server is down.
+      function subscribe() {
+        const es = new EventSource('/events');
+        es.onmessage = (m) => {
+          const e = JSON.parse(m.data);
+          if (e.type === 'start') {
+            $('log').classList.remove('replay'); // live from here on, so blocks may rise into place
+            line('task', '▶ ' + e.task); // appends to the transcript; a new task no longer wipes it
+          }
+          else if (e.type === 'log') line(e.kind || 'step', e.text);
+          else if (e.type === 'assistant') markdownReply(e.text);
+          else if (e.type === 'tool') toolCard(e);
+          else if (e.type === 'change') changeCard(e);
+          else if (e.type === 'ask') askCard(e);
+          else if (e.type === 'end') {
+            if (!e.ok) line('err', '✗ ' + (e.error || 'failed'));
+            loadSessions();
+          }
+        };
+        es.onerror = () => { $('state').textContent = '本地服务已断开'; $('state').className = 'off'; };
+      }
+
+      async function tick() {
+        try {
+          const s = await (await fetch('/status')).json();
+          const st = $('state');
+          st.textContent = s.asking
+            ? '等你回答…'
+            : s.running
+              ? s.stop
+                ? '正在停止…'
+                : '运行中…'
+              : s.staleExtension
+                ? '插件是旧版：重载插件并刷新页面'
+                : s.extensionReady
+                  ? '就绪'
+                  : '等插件（点一下插件图标）';
+          st.className = s.running || s.asking ? 'run' : s.staleExtension || !s.extensionReady ? 'off' : 'on';
+          // The tab title is the only channel a person has when the console is in a background tab,
+          // and a run that is blocked on a question looks exactly like one that is thinking.
+          document.title = s.asking ? '⚠ 等你回答' : s.running ? '运行中…' : 'deepseek web bridge';
+          $('ver').textContent = s.extensionVersion >= 0 ? `v${s.extensionVersion}/${s.contentVersion}` : '';
+          $('send').disabled = s.running;
+          $('stop').disabled = !s.running;
+          // A second tab (or a reload) can change the mode; take the server's word for it.
+          if (s.mode && s.mode !== mode) {
+            mode = s.mode;
+            drawModes();
+          }
+          // Which conversation is being written to. Cheap enough to re-mark every tick, and it
+          // only touches the class when it actually changed.
+          if (s.sessionId !== lastSessionId) markLive(s.sessionId);
+          // Riding the same clock as the status: a flag that is a second and a half late is fine.
+          syncJump();
+          // A second tab can change the workspace; show what the server says, unless the field is
+          // being typed into right now.
+          if (s.workspace && document.activeElement !== $('ws-path') && $('ws-path').value !== s.workspace) {
+            $('ws-path').value = s.workspace;
+          }
+        } catch {
+          $('state').textContent = '本地服务已断开';
+          $('state').className = 'off';
+        }
+      }
+
+      const post = async (path, body) => {
+        const r = await (await fetch(path, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: body ? JSON.stringify(body) : undefined,
+        })).json();
+        $('hint').textContent = r.error || '';
+        $('hint').className = r.error ? '' : 'dim';
+        setTimeout(() => { $('hint').textContent = ''; }, 4000);
+        return r;
+      };
+
+      // The human's standing permission. Two buttons rather than a menu: the choice is small,
+      // and which one is on has to be visible without a click. Only a person can change it —
+      // no tool reaches this endpoint. There is deliberately no "allow everything" mode.
+      const MODES = [['read-only', '只读'], ['workspace', '工作区']];
+      let mode = 'workspace';
+      function drawModes() {
+        const box = $('modes');
+        box.innerHTML = '';
+        for (const [id, label] of MODES) {
+          box.append(el('button', {
+            textContent: label,
+            className: id === mode ? 'on' : '',
+            title: id === 'read-only'
+              ? '不改任何东西：write / edit / run 一律不发'
+              : '工作区内随便动；工作区外每次问你一次',
+            onclick: async () => {
+              const r = await post('/mode', { mode: id });
+              if (r?.ok) {
+                mode = r.mode;
+                drawModes();
+              }
+            },
+          }));
+        }
+      }
+      drawModes();
+
+      // The workspace: typed, because a page cannot open a native folder chooser, and the field
+      // shows what is in force. The server refuses a path that is not a directory and refuses a
+      // change mid-run (every path in flight was resolved against the old one).
+      $('ws-set').onclick = async () => {
+        const r = await post('/workspace', { dir: $('ws-path').value.trim() });
+        if (!r?.ok) return;
+        $('ws-path').value = r.workspace;
+        // The transcript is kept and labelled: it is what happened, in the old folder.
+        line('step', `工作区已切到 ${r.workspace} —— 上面这些是上一个工作区里的记录`);
+      };
+      $('ws-path').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          $('ws-set').click();
+        }
+      });
+
+      // One input for both jobs: a task that changes files, or a plain question.
+      // The model decides which by whether the request needs a tool, so there is
+      // nothing for the user to pick.
+      //
+      // Tasks continue the same DeepSeek conversation by default, the way an editor
+      // keeps its context between requests. 新对话 arms the next send to start a new
+      // one instead, and disarms itself so it cannot be left on by accident.
+      let fresh = false;
+      $('send').onclick = async () => {
+        const text = $('task').value.trim();
+        if (!text) return;
+        const r = await post('/task', { text, fresh });
+        // Disarm only when the task was accepted. A run already in flight answers 409,
+        // and clearing the armed state on that would make the retry silently continue
+        // the old conversation instead of starting the new one that was asked for.
+        if (r?.ok) {
+          fresh = false;
+          $('newchat').className = '';
+          // Cleared on acceptance, kept on refusal: a rejected task leaves the draft where
+          // it was so the retry does not have to be retyped.
+          $('task').value = '';
+          fitComposer();
+        }
+      };
+      $('newchat').onclick = () => {
+        fresh = true;
+        $('newchat').className = 'armed';
+        $('hint').textContent = '下一条会开新对话';
+        $('hint').className = 'dim';
+        $('task').focus();
+      };
+      $('probe').onclick = () => post('/probe');
+      // Clears this page's transcript only, never the web chat. The conversation the
+      // model sees is the page's, and only 新对话 starts a new one.
+      $('clear').onclick = () => {
+        $('log').innerHTML = '';
+        for (const s of $('sessions').children) s.classList.remove('on');
+        $('task').value = '';
+        $('task').focus();
+      };
+      $('stop').onclick = () => post('/stop');
+      $('reload').onclick = loadSessions;
+
+      // The composer grows with the draft and then scrolls. A fixed 68px box means a long
+      // task is read through a letterbox; the cap is where a draft stops being readable at
+      // a glance, and past it the textarea is the only thing that scrolls.
+      const COMPOSER_MAX = 320;
+      const fitComposer = () => {
+        const box = $('task');
+        box.style.height = 'auto';
+        box.style.height = `${Math.min(box.scrollHeight, COMPOSER_MAX)}px`;
+      };
+      $('task').addEventListener('input', fitComposer);
+      $('task').addEventListener('keydown', (e) => {
+        // Shift+Enter is the native newline unconditionally, and it is decided before the
+        // IME guard below: a composition-closing Shift+Enter still has to break the line.
+        if (e.key === 'Enter' && e.shiftKey) return;
+        if (e.key !== 'Enter') return;
+        // Mid-composition Enter picks an IME candidate. `keyCode 229` is the same state under
+        // the older engines' name, and without either test a Chinese IME sends the half-typed
+        // word. The old handler sent on Ctrl+Enter only, so this could not happen before.
+        if (e.isComposing || e.keyCode === 229) return;
+        if (e.repeat) return; // a held Enter must not machine-gun sends
+        e.preventDefault();
+        $('send').click();
+      });
+
+      loadSessions();
+      subscribe();
+      setInterval(tick, 1500);
+      tick();
+    </script>
+  </body>
+</html>

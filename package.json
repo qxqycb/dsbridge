@@ -1,0 +1,11 @@
+{
+  "name": "dsh-web-bridge-demo",
+  "private": true,
+  "type": "module",
+  "description": "Browser-extension bridge: chat.deepseek.com as the agent brain, local tools as hands.",
+  "scripts": {
+    "start": "node bridge.mjs",
+    "selftest": "node bridge.mjs --selftest",
+    "probe": "node bridge.mjs --probe"
+  }
+}
